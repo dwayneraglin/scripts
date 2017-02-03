@@ -1,6 +1,6 @@
 #!/bin/bash
-# This script prompts the user for 2 numbers. It then performs the 5 different arithmetic funtions on the number.
-# Finally, it displays the results in a user-friendly way.
+# This script prompts the user for 2 numbers. It then performs 5 different arithmetic functions on the number.
+# Finally, it displays the results in a user-friendly format.
 
 echo
 read -p "Give me a number please: " num1
