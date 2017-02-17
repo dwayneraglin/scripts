@@ -1,6 +1,37 @@
 #!/bin/bash
 # This script displays a system information summary. It accepts command line options for each item.
 
+clear
+cat <<EOF
+System Information Menu:
+------------------------
+
+Please choose from the following options to display that piece of information:
+
+1.  System Name
+
+2.  Domain Name
+
+3.  Interface IP Addresses
+
+4.  OS Version
+
+5.  OS Name
+
+6.  CPU Description
+
+7.  Installed Memory
+
+8.  Free Disk Space
+ 
+9.  List of Installed Printers
+
+10. List of Installed Software
+
+EOF
+
+read -p "Please enter an option from 1-10 and press enter" myvar [-n "$myvar"] || echo "You need to enter an option"
+
 # display the hostname
 echo The system name is $(hostname)
 
@@ -40,5 +71,5 @@ echo The system has $(df -h | awk '/^["/dev"]/') of free disk space
 lpstat
 
 # display a list of installed software
-# echo The system has the following software packages installed:
-dpkg --get-selections | more
+echo The system has the following software packages installed:
+#dpkg --get-selections | more
