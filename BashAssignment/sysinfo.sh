@@ -28,9 +28,11 @@ Please choose from the following options to display that piece of information:
 
 10. List of Installed Software
 
+11. Display all
+
 EOF
 
-read -p "Please enter an option from 1-10 and press enter" myvar [-n "$myvar"] || echo "You need to enter an option"
+read -p "Please enter an option from 1-11 and press enter: " myvar [-n "$myvar"] || echo "You need to enter an option"
 
 # display the hostname
 echo The system name is $(hostname)
@@ -60,6 +62,7 @@ echo The OS Name is $(cat /etc/*release | awk '/^[NAME="]/')
 
 # display the CPU description
 echo The system CPU is $(cat /proc/cpuinfo | awk '/^[model info]/')
+echo The system CPU is $(lscpu | grep 'Model name')
 
 # display the installed memory
 echo This system has $(free -m | awk '/^[Mem:]/')MB of memory installed.

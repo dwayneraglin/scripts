@@ -5,11 +5,9 @@
 # unset animals
 # unset colours
 
-# creates an array
-colours=("red" "green" "blue" "orange" "pink")
-# creates an associative array
+colours=("red" "green" "blue" "orange")
 declare -A animals
-animals=([red]="cardinal" [green]="frog" [blue]="lobster" [orange]="fish" [pink]="flamingo")
+animals=([red]="cardinal" [green]="frog" [blue]="lobster" [orange]="fish")
 # animals[green]="snake" # This changes the green key value to snake
 # animals[yellow]="butterfly" # This adds the array key yellow and sets the value to butterfly
 numcolours=${#colours[@]}
