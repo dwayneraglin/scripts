@@ -26,7 +26,6 @@ function usage {
 	echo "Usage: ./sysinfo.sh [Option 1] [Option 2]...."
 	echo "Provides information about the local system"
 	echo 
-	echo "This script should be run as root"
 	echo "Running the script with no options provides this usage output"
 	echo
 	echo "  -a, --all			display all options except installed software"
@@ -34,7 +33,7 @@ function usage {
 	echo "  -d, --domainname		display the system dns domain name"
 	echo "  -f, --freediskspace     	display the available disk space on the system"
 	echo "  -h, --help			display this usage menu"
-	echo "  -i, --ipaddress		display the ip address(es) of the system (requires running as root)"
+	echo "  -i, --ipaddress		display the ip address(es) of the system"
 	echo "  -m, --memory			display the memory installed in the system"
         echo "  -n, --hostname		display the system hostname"
 	echo "  -o, --osname			display the operating system name for the system"
@@ -82,7 +81,7 @@ function freespaceondisk {
 function ipaddress {
 	echo "IP address of interface(s):"
 	declare -a ips
-       	interfacenames=(`/sbin/ifconfig 2>> $errorfile | grep '^[a-zA-Z]' | awk '{print $1}'`)
+       	interfacenames=(`/sbin/ifconfig | grep '^[a-zA-Z]' | awk '{print $1}'`)
        	numberofinterfaces=${#interfacenames[@]}
        	interfacearrayindex=0
 	while [ $interfacearrayindex -lt $numberofinterfaces ] ; do
@@ -124,13 +123,13 @@ function opersysname {
 # runs lpstat to display the installed printers, and send any error messages to a text file
 function printersinstalled {
 	# test if CUPS is installed, if not, echo instructions to user
-	lpstat &>/dev/null
+	lpstat 2>> $errorfile 1>/dev/null
 	if [ $? -ne 0 ]
 		then echo "Installed printers could not be displayed."
 		echo "You might need to install CUPS. Please check /tmp/sysinfoerrors.txt for further details." >&2
 		else echo "Installed printers:"
 		# if installed, outputs printers, if not, writes to error file
-		lpstat -v 2>> $errorfile | awk '{print $3 " " $4}'
+		lpstat -v | awk '{print $3 " " $4}'
 	fi
 }
 
