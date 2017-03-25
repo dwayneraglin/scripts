@@ -26,7 +26,7 @@ while [ $guess -ne $mynumber ]; do
     if [ $guess -lt $mynumber ]; then
         echo "Too small, try again"
     elif [ $guess -gt $mynumber ]; then
-        ehco "Too big, try again"
+        echo "Too big, try again"
     fi
 done
 

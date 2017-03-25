@@ -1,0 +1,144 @@
+#!/bin/bash
+# This script displays a system information summary. It accepts command line options for each item, or displays a menu if run without
+# any command line options.
+
+
+#############
+# Variables #
+#############
+
+unset interfacenames
+hostname=$(hostname)
+cpu=$(lscpu | grep 'Model name' | sed 's/Model name://')
+domainname=$(dnsdomainname)
+memory=$(free -t -h | grep "Mem:" | awk '{print $2}')
+osname=$(cat /etc/*release | awk '/^[NAME="]/' | sed 's/NAME="//' | sed 's/"//')
+osver=$(cat /etc/*version)
+
+
+#############
+# Functions #
+#############
+
+# Help message
+function usage {
+	clear
+	echo "Usage: ./sysinfo.sh [Option 1] [Option 2]...."
+	echo "Provides information about the local system"
+	echo 
+	echo "Running the script with no options provides this usage output"
+	echo
+	echo "  -a, --availdisk		display the available disk space on the system"
+	echo "  -c, --cpudesc			display the CPU description of the system"
+	echo "  -d, --domainname		display the system dns domain name"
+	echo "  -i, --ipaddr			display the ip address(es) of the system"
+	echo "  -m, --memory			display the memory installed in the system"
+        echo "  -n, --hostname                display the system hostname"
+	echo "  -o, --osname			display the operating system name for the system"
+	echo "  -p, --printers		display the printers installed on the system"
+	echo "  -s, --software		display the software installed on the system"
+	echo "  -v, --osver			display the operating system version for the system"
+}
+
+function error-message {
+  echo "$@" >&2
+}
+
+###########################
+# Command line processing #
+###########################
+
+
+if  [ $# == 0 ]
+then 
+	usage
+	exit 0
+fi
+
+# need to test if cmd line arg is valid before processing any
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-h|--help )
+		usage
+		exit 0
+		;;
+	-a|--availdisk )
+		declare -a disks
+		disknames=(`df -h | awk '/^["/dev/sd"]/' | awk '{print $1}'`)
+		numberofdisks=${#disknames[@]}
+		diskarrayindex=0
+		while [ $diskarrayindex -lt $numberofdisks ] ; do
+                        currentdiskname=${disknames[$diskarrayindex]}
+                        disks[$diskarrayindex]=$(df -h | awk '/^["/dev/sd"]/' | awk '{print $4}')
+                        freediskspace=${disks[$diskarrayindex]}
+                        echo "Disk $currentdiskname has $freediskspace of free disk space"
+                        diskarrayindex=$(( $diskarrayindex +1 ))
+                done
+		;;
+	-c|--cpudesc )
+		if [ - $cpu ]
+		then echo "The system CPU description could not be discovered." 
+		else echo "The system CPU is:" $cpu
+		fi
+		;;
+	-d|--domainname ) 
+		if [ -z $domainname ]
+		then echo "This system does not have a domain name configured."
+		else echo "The system domain name is:" $domainname
+		fi
+		;;
+	-i|--ipaddr )
+		declare -a ips
+		interfacenames=(`ifconfig | grep '^[a-zA-Z]' | awk '{print $1}'`)
+		numberofinterfaces=${#interfacenames[@]}
+		interfacearrayindex=0
+		while [ $interfacearrayindex -lt $numberofinterfaces ] ; do
+    			currentinterfacename=${interfacenames[$interfacearrayindex]}
+		    	ips[$interfacearrayindex]=`ifconfig $currentinterfacename | grep 'inet addr' | sed -e 's/  *inet addr://'| sed -e 's/ .*//'`
+    			currentinterfaceIPaddress=${ips[$interfacearrayindex]}
+    			echo "Interface $currentinterfacename: $currentinterfaceIPaddress"
+    			interfacearrayindex=$(( $interfacearrayindex +1 ))
+		done
+		;;
+	-m|--memory )
+		if [ -z $memory ]
+		then echo "The installed system memory could not be discovered."
+		else echo "The installed system memory is:" $memory
+		fi
+		;;
+        -n|--name )
+                if [ -z $hostname ]
+                then echo "This system does not have a hostname configured."
+                else echo "The system hostname is:" $hostname
+                fi
+                ;;
+	-o|--osname )
+#		if [ -z $osname ]
+#		then echo "The operating system name could not be discovered."
+#		else 
+echo "The operating system name is:" $osname
+#		fi
+		;;
+	-p|--printers )
+		lptstat >& /tmp/sysinfoerrors.txt || echo "You need to install lptstat to display a list of installed printers.">&2
+		;;
+	-s|--software )
+		echo The system has the following software packages installed:
+		dpkg --get-selections | more
+		;;
+        -v|--osversion )
+                if [ -z $osver ]
+                then echo "The operating system version could not be discovered."
+                else echo "The operating system version is:" $osver
+                fi
+                ;;
+	* )
+		echo "Argument '$1' not recognized"
+		echo "-h or --help for usage">&2
+		exit 2
+		;;
+	esac
+	shift
+done
+
