@@ -8,13 +8,19 @@
 #############
 
 errorfile=/tmp/sysinfoerrors.txt
+cmdargnum=$#
+cmdargs=$@
 
 cpu=$(head /proc/cpuinfo | grep "model name" | sed -e 's/model name//' -e 's/://')
 domainname=$(dnsdomainname)
 hostname=$(hostname)
 memory=$(free -t -h | grep "Mem:" | awk '{print $2}')
+#osname=$(cat /etc/*release | awk '/^[NAME="]/' | sed 's/NAME="//' | sed 's/"//')
 osname=$(lsb_release -d | sed 's/Description://')
+#osname=$(uname)
+#osversion=$(cat /etc/*version)
 osversion=$(lsb_release -r | sed 's/Release://')
+#osversion=$(uname -r)
 
 #############
 # Functions #
@@ -28,57 +34,62 @@ function usage {
 	echo 
 	echo "Running the script with no options provides this usage output"
 	echo
-	echo "  -a, --all			display all options except installed software"
-	echo "  -c, --cpu			display the CPU description of the system"
+	echo "  -a, --availdisk		display the available disk space on the system"
+	echo "  -c, --cpudesc			display the CPU description of the system"
 	echo "  -d, --domainname		display the system dns domain name"
-	echo "  -f, --freediskspace     	display the available disk space on the system"
-	echo "  -h, --help			display this usage menu"
-	echo "  -i, --ipaddress		display the ip address(es) of the system"
+	echo "  -i, --ipaddr			display the ip address(es) of the system"
 	echo "  -m, --memory			display the memory installed in the system"
-        echo "  -n, --hostname		display the system hostname"
+        echo "  -n, --hostname                display the system hostname"
 	echo "  -o, --osname			display the operating system name for the system"
 	echo "  -p, --printers		display the printers installed on the system"
 	echo "  -s, --software		display the software installed on the system"
-	echo "  -v, --osversion		display the operating system version for the system"
+	echo "  -v, --version			display the operating system version for the system"
+}
+
+function error-message {
+  echo "$@" >&2
+}
+
+# derives the available disk space for all disks beginning with /dev/sd*
+function availablediskspace {
 	echo
+	echo "Disk Free Space:"
+	declare -a disks
+#	disknames=$(df -h | awk '/^["/dev/sd"]/' | awk '{print $1}')
+	disknames=(`df -h | grep "/dev/sd" | awk '{print $1}'`)
+        numberofdisks=${#disknames[@]}
+        diskarrayindex=0
+        while [ $diskarrayindex -lt $numberofdisks ] ; do
+		currentdiskname=${disknames[$diskarrayindex]}
+#               disks[$diskarrayindex]=$(df -h | awk '/^["/dev/sd"]/' | awk '{print $4}')
+		disks[$diskarrayindex]=$(df -h | grep $currentdiskname | awk '{print $4}')
+                freediskspace=${disks[$diskarrayindex]}
+		echo "Disk $currentdiskname has $freediskspace of free disk space"
+                diskarrayindex=$(( $diskarrayindex +1 ))
+	done
 }
 
 # tests if the cpu variable contains text and outputs the appropriate comment or information
 function cpudescription {
+	echo
         if [ -z "$cpu" ]
 		then echo "The system CPU description could not be discovered." 
-                else echo "System CPU:" 
-		echo $cpu
+                else echo "The system CPU is a(n):" $cpu
 	fi
 }
 
 # tests if the domainname variable contains text and outputs the appropriate comment or information
 function dnsdomainname {
+	echo
 	if [ -z "$domainname" ]
                 then echo "This system does not have a domain name configured."
-                else echo "System configured domain name:" 
-		echo $domainname
+                else echo "The system domain name is:" $domainname
 	fi
-}
-
-# derives the available disk space for all disks beginning with /dev/sd*
-function freespaceondisk {
-        echo "Free Disk Space:"
-        declare -a disks
-        disknames=(`df -h | grep "/dev/sd" | awk '{print $1}'`)
-        numberofdisks=${#disknames[@]}
-        diskarrayindex=0
-        while [ $diskarrayindex -lt $numberofdisks ] ; do
-                currentdiskname=${disknames[$diskarrayindex]}
-                disks[$diskarrayindex]=$(df -h | grep $currentdiskname | awk '{print $4}')
-                freespace=${disks[$diskarrayindex]}
-                echo "Disk $currentdiskname has $freespace of free disk space"
-                diskarrayindex=$(( $diskarrayindex +1 ))
-        done
 }
 
 # derives the ip address of all interfaces
 function ipaddress {
+	echo
 	echo "IP address of interface(s):"
 	declare -a ips
         interfacenames=(`ifconfig | grep '^[a-zA-Z]' | awk '{print $1}'`)
@@ -95,56 +106,54 @@ function ipaddress {
 
 # tests if the memory variable contains text and outputs the appropriate comment or information
 function memoryinstalled {
+	echo
 	if [ -z "$memory" ]
                 then echo "The installed system memory could not be discovered."
-                else echo "System installed memory:" 
-		echo $memory
+                else echo "The installed system memory is:" $memory
 	fi
 }
 
 # tests if the hostname variable contains text and outputs the appropriate comment or information
 function nameofhost {
+	echo
 	if [ -z "$hostname" ]
                 then echo "This system does not have a hostname configured."
-                else echo "System configured hostname:" 
-		echo $hostname
+                else echo "The system hostname is:" $hostname
         fi
 }
 
 # tests if the osname variable contains text and outputs the appropriate comment or information
 function opersysname {
+	echo
         if [ -z "$osname" ]
 		then echo "The operating system name could not be discovered."
-                else echo "Operating system:" 
-		echo $osname
+                else echo "The operating system name is:" $osname
         fi
 }
 
 # runs lpstat to display the installed printers, and send any error messages to a text file
 function printersinstalled {
 	# test if CUPS is installed, if not, echo instructions to user
-	lpstat &>/dev/null
-	if [ $? -ne 0 ]
-		then echo "Installed printers could not be displayed."
-		echo "You might need to install CUPS. Please check /tmp/sysinfoerrors.txt for further details." >&2
-		else echo "Installed printers:"
-		# if installed, outputs printers, if not, writes to error file
-		lpstat -v 2>> $errorfile | awk '{print $3 " " $4}'
-	fi
+	echo
+	echo "Printers installed on the system:"
+	lptstat 2>/dev/null || echo "You need to install CUPS. Please check /tmp/sysinfoerrors.txt for further details." >&2
+	# if installed, outputs printers, if not, writes to error file
+	lptstat -v 2>> $errorfile | awk '{print $3 " " $4}'
 }
 
 # runs dpkg to list the installed software
 function softwareinstalled {
+        echo 
 	echo The system has the following software packages installed:
-        dpkg -l | more
+        dpkg --get-selections | more
 }
 
 # tests if the version variable contains text and outputs the appropriate comment or information
 function versionofos {
-        if [ -z "$osversion" ]
+	echo
+        if [ -z $osversion ]
                 then echo "The operating system version could not be discovered."
-                else echo "Operating system version:" 
-		echo $osversion
+                else echo "The operating system version is:" $osversion
         fi
 }
 
@@ -153,7 +162,6 @@ function versionofos {
 # Command line processing #
 ###########################
 
-# if no command arguements entered, display usage and exit
 
 if  [ $# == 0 ]
 then
@@ -161,9 +169,22 @@ then
 	exit 0
 fi
 
-# test if cmd line arguementss are valid before processing any
-# if valid, set parameter to yes for corresponding function
-# if invalid, list bad arguement, display usage, and exit
+# test if cmd line args are valid before processing any
+
+
+#while [ $cmdargnum -gt 0 ]; do
+#        case "$1" in
+#        -h|-a|-c|-d|-i|-m|-n|-o|-p|-s|-v )
+#	[!-] )
+#                echo "You dumbass, command line option '$1' is not valid."
+#                echo "Run ./sysinfo.sh with -h or --help for usage information.">&2
+#                exit 2
+#		;;
+#        esac
+#	shift
+#done
+
+#echo "I've gone past..."
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -171,46 +192,35 @@ while [ $# -gt 0 ]; do
 		usage
 		exit 0
 		;;
-	-a|--all )
-		cpudescriptionvar=yes
-		dnsdomainnamevar=yes
-		freespaceondiskvar=yes
-		ipaddressvar=yes
-		memoryinstalledvar=yes
-		nameofhostvar=yes
-		opersysnamevar=yes
-		printersinstalledvar=yes
-		versionofosvar=yes
+	-a|--availdisk )
+		availablediskspace
 		;;
-	-c|--cpu )
-		cpudescriptionvar=yes
+	-c|--cpudesc )
+		cpudescription
 		;;
-	-d|--domainname )
-		dnsdomainnamevar=yes
-                ;;
-        -f|--freediskspace )
-                freespaceondiskvar=yes
+	-d|--domainname ) 
+		dnsdomainname
 		;;
-	-i|--ipaddress )
-		ipaddressvar=yes
+	-i|--ipaddr )
+		ipaddress
 		;;
 	-m|--memory )
-		memoryinstalledvar=yes
+		memoryinstalled
 		;;
-        -n|--hostname )
-		nameofhostvar=yes
+        -n|--name )
+		nameofhost
                 ;;
 	-o|--osname )
-		opersysnamevar=yes
+		opersysname
 		;;
 	-p|--printers )
-		printersinstalledvar=yes
+		printersinstalled
 		;;
 	-s|--software )
-		softwareinstalledvar=yes
+		softwareinstalled
 		;;
-        -v|--osversion )
-                versionofosvar=yes
+        -v|--version )
+                versionofos
                 ;;
 	* )
 		echo "Command line option '$1' is not valid."
@@ -221,62 +231,3 @@ while [ $# -gt 0 ]; do
 	shift
 done
 
-# Output header
-
-echo
-echo "+--------------------+"
-echo "| System Information |"
-echo "+--------------------+"
-echo
-
-# Process paramaters that are set to yes and run their corresponding function.
-
-if [ "$cpudescriptionvar" == yes ] 
-	then cpudescription
-	echo
-fi
-
-if [ "$dnsdomainnamevar" == yes ]
-	then dnsdomainname
-	echo
-fi
-
-if [ "$freespaceondiskvar" == yes ]
-	then freespaceondisk
-	echo
-fi
-
-if [ "$ipaddressvar" == yes ]
-	then ipaddress
-	echo
-fi
-
-if [ "$memoryinstalledvar" == yes ]
-	then memoryinstalled
-	echo
-fi
-
-if [ "$nameofhostvar" == yes ]
-	then nameofhost
-	echo
-fi
-
-if [ "$opersysnamevar" == yes ]
-	then opersysname
-	echo
-fi
-
-if [ "$printersinstalledvar" == yes ]
-	then printersinstalled
-	echo
-fi
-
-if [ "$softwareinstalledvar" == yes ]
-	then softwareinstalled
-	echo
-fi
-
-if [ "$versionofosvar" == yes ]
-	then versionofos
-	echo
-fi
