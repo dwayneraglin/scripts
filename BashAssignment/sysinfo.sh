@@ -26,6 +26,7 @@ function usage {
 	echo "Usage: ./sysinfo.sh [Option 1] [Option 2]...."
 	echo "Provides information about the local system"
 	echo 
+	echo "This script should be run as root"
 	echo "Running the script with no options provides this usage output"
 	echo
 	echo "  -a, --all			display all options except installed software"
@@ -33,7 +34,7 @@ function usage {
 	echo "  -d, --domainname		display the system dns domain name"
 	echo "  -f, --freediskspace     	display the available disk space on the system"
 	echo "  -h, --help			display this usage menu"
-	echo "  -i, --ipaddress		display the ip address(es) of the system"
+	echo "  -i, --ipaddress		display the ip address(es) of the system (requires running as root)"
 	echo "  -m, --memory			display the memory installed in the system"
         echo "  -n, --hostname		display the system hostname"
 	echo "  -o, --osname			display the operating system name for the system"
@@ -81,15 +82,15 @@ function freespaceondisk {
 function ipaddress {
 	echo "IP address of interface(s):"
 	declare -a ips
-        interfacenames=(`ifconfig | grep '^[a-zA-Z]' | awk '{print $1}'`)
-        numberofinterfaces=${#interfacenames[@]}
-        interfacearrayindex=0
-        while [ $interfacearrayindex -lt $numberofinterfaces ] ; do
+       	interfacenames=(`/sbin/ifconfig 2>> $errorfile | grep '^[a-zA-Z]' | awk '{print $1}'`)
+       	numberofinterfaces=${#interfacenames[@]}
+       	interfacearrayindex=0
+	while [ $interfacearrayindex -lt $numberofinterfaces ] ; do
 		currentinterfacename=${interfacenames[$interfacearrayindex]}
-                ips[$interfacearrayindex]=$(ifconfig $currentinterfacename | grep 'inet addr' | sed -e 's/  *inet addr://'| sed -e 's/ .*//')
-                currentinterfaceIPaddress=${ips[$interfacearrayindex]}
-                echo "Interface $currentinterfacename: $currentinterfaceIPaddress"
-                interfacearrayindex=$(( $interfacearrayindex +1 ))
+                ips[$interfacearrayindex]=$(/sbin/ifconfig $currentinterfacename | grep 'inet addr' | sed -e 's/  *inet addr://'| sed -e 's/ .*//')
+               	currentinterfaceIPaddress=${ips[$interfacearrayindex]}
+               	echo "Interface $currentinterfacename: $currentinterfaceIPaddress"
+               	interfacearrayindex=$(( $interfacearrayindex +1 ))
 	done
 }
 
